@@ -1,73 +1,31 @@
-import unittest
-from unittest.mock import Mock, patch
-from flask import Flask, json, jsonify
-import APIHome  # Your APIHome module
-import jwt  # For generating a valid JWT token
-import sqlalchemy  # For mocking create_engine
+pytest --cov . test/ --cov-report html
+===================================================== test session starts =====================================================
+platform win32 -- Python 3.9.13, pytest-7.2.0, pluggy-1.5.0
+rootdir: C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API
+plugins: Flask-Dance-3.2.0, cov-4.0.0
+collected 85 items
 
-# Mock global variables and external dependencies
-APIHome.gvar = Mock()
-APIHome.dbops_obj = Mock()
-APIHome.db = Mock()
-APIHome.insertServerEventLog = Mock()
+test\test_APIHome.py FF.........                                                                                         [ 12%]
+test\test_config.py .....................                                                                                [ 37%]
+test\test_db.py .                                                                                                        [ 38%]
+test\test_globalvars.py .                                                                                                [ 40%] 
+test\Entities\test_Customentities.py ....                                                                                [ 44%]
+test\Entities\test_dbormschemas.py .........                                                                             [ 55%]
+test\Services\test_APIResponse.py .......                                                                                [ 63%]
+test\Services\test_Auth.py ....F...                                                                                      [ 72%]
+test\Services\test_CustomException.py ..                                                                                 [ 75%] 
+test\Services\test_SADRD_CLI.py .......                                                                                  [ 83%]
+test\Services\test_dboperations.py .                                                                                     [ 84%]
+test\Services\test_fileoperations.py .......                                                                             [ 92%]
+test\Services\test_logoperations.py ...                                                                                  [ 96%]
+test\Services\test_parentparser.py ...                                                                                   [100%]
 
-class TestAPIHome(unittest.TestCase):
-    def setUp(self):
-        # Set up Flask test client
-        self.app = APIHome.mainapp
-        self.app.config["ENV"] = "test"
-        self.app.config["LOGLEVEL"] = "DEBUG"
-        self.app.config["CORS_ORIGINS"] = '{"test": "*"}'
-        self.app.config["DRIVER"] = "MockDriver"
-        self.app.config["SADRD_DATABASE_SERVER"] = "mockserver"
-        self.app.config["SADRD_DATABASE_NAME"] = "mockdb"
-        self.app.config["CONNECTION_AUTH_STRING"] = ";Trusted_Connection=Yes"
-        self.app.config["SQLALCHEMYODBC"] = "mssql+pyodbc:///?odbc_connect=DRIVER={DRIVER};SERVER={SADRD_DATABASE_SERVER};DATABASE={SADRD_DATABASE_NAME}{CONNECTION_AUTH_STRING}"
-        self.app.config["SERVER_LOGFILES_FOLDER"] = "/mock/logs"
-        self.app.config["API_ENDPOINT"] = "mock_endpoint"
-        self.app.config["APP_SERVER_IP_ADDRESS"] = "127.0.0.1"
+========================================================== FAILURES =========================================================== 
+_________________________________________ TestAPIHome.test_authenticate_user_no_token _________________________________________ 
 
-        # Initialize gvar to avoid dboperations errors
-        APIHome.gvar.sqlconfig = "DRIVER=MockDriver;SERVER=mockserver;DATABASE=mockdb;Trusted_Connection=Yes"
-        APIHome.gvar.gconfig = self.app.config
-        APIHome.gvar.user_id = "testuser"
-        APIHome.gvar.user_ip_address = "127.0.0.1"
-        APIHome.gvar.func = "mock_func"
-        APIHome.gvar.sadrdUsersList = []
-        APIHome.gvar.sadrd_settings = []
-        APIHome.gvar.sadrd_ErrMessages = []
-
-        # Mock db.init_app
-        APIHome.db.init_app = Mock()
-
-        self.client = self.app.test_client()
-        self.app_context = self.app.app_context()
-        self.app_context.push()
-
-    def tearDown(self):
-        self.app_context.pop()
-
-    # Helper to generate a valid JWT token
-    def generate_jwt_token(self):
-        return jwt.encode({"sub": "testuser", "name": "Test User", "ipaddr": "127.0.0.1"}, "secret", algorithm="HS256")
-
-    # Test /api/AuthenticateUser
-    @patch("APIHome.auth.GetLoggedInUser")
-    @patch("APIHome.GetAllRoles")
-    @patch("sqlalchemy.create_engine")
-    @patch("Services.dboperations.dboperations")
-    def test_authenticate_user_success(self, mock_dbops, mock_create_engine, mock_get_all_roles, mock_get_logged_in_user):
-        mock_create_engine.return_value = Mock()
-        mock_dbops.return_value = Mock()  # Mock dboperations instance
-        mock_get_logged_in_user.return_value = "testuser"
-        APIHome.gvar.sadrdUsersList = [Mock(NetworkId="testuser", Name="Test User", RoleId=1, isActive=True, Email="test@example.com")]
-        mock_get_all_roles.return_value.json.get.return_value = [{"RoleID": 1, "Type": "Admin"}]
-        
-        token = self.generate_jwt_token()
-        response = self.client.get("/api/AuthenticateUser", headers={"Authorization": f"Bearer {token}"})
-        self.assertEqual(response.status_code, 200)
-        data = response.get_json() or {}
-        self.assertTrue(data.get("authenticated", False))
+self = <test.test_APIHome.TestAPIHome testMethod=test_authenticate_user_no_token>
+mock_dbops = <MagicMock name='dboperations' id='2734128965952'>
+mock_create_engine = <MagicMock name='create_engine' id='2734128978096'>
 
     @patch("sqlalchemy.create_engine")
     @patch("Services.dboperations.dboperations")
@@ -78,146 +36,171 @@ class TestAPIHome(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.get_json() or {}
         # Adjust based on actual behavior (seems to return True without token)
-        self.assertTrue(data.get("authenticated", False), "Endpoint returns authenticated=True without token")
+>       self.assertTrue(data.get("authenticated", False), "Endpoint returns authenticated=True without token")
+E       AssertionError: False is not true : Endpoint returns authenticated=True without token
 
-    # Test /api/GetImportTypes
-    @patch("sqlalchemy.create_engine")
-    @patch("Services.dboperations.dboperations")
-    def test_get_import_types_success(self, mock_dbops, mock_create_engine):
-        mock_create_engine.return_value = Mock()
-        mock_dbops.return_value = Mock()
-        APIHome.gvar.sadrd_settings = [
-            Mock(settingName="ImportType", settingValue="Type1", Description="Desc1"),
-            Mock(settingName="Other", settingValue="Value", Description="OtherDesc")
-        ]
-        response = self.client.get("/api/GetImportTypes")
-        self.assertEqual(response.status_code, 200)
-        data = response.get_json() or {}
-        # Adjust based on actual behavior (seems to return empty list)
-        self.assertEqual(len(data.get("ImportTypesData", [])), 0, "Endpoint returns empty list")
+test\test_APIHome.py:81: AssertionError
+_________________________________________ TestAPIHome.test_authenticate_user_success __________________________________________ 
 
-    # Test /api/ImportData
-    @patch("Services.parentparser.parentparser")
-    @patch("sqlalchemy.create_engine")
-    @patch("Services.dboperations.dboperations")
-    def test_import_data_success(self, mock_dbops, mock_create_engine, mock_parentparser):
-        mock_create_engine.return_value = Mock()
-        mock_dbops.return_value = Mock()
-        APIHome.gvar.sadrd_settings = [Mock(settingName="ServerFolderPath", settingValue="/mock/path")]
-        mock_parentparser.return_value = APIHome.ApihomeResp(status="Success", message="Imported successfully")
-        response = self.client.post("/api/ImportData", data={"year": "2023", "importType": "testType"})
-        self.assertEqual(response.status_code, 200)
-        data = response.get_json() or {}
-        self.assertEqual(data.get("Status", ""), "", "Endpoint returns empty Status")
+self = <test.test_APIHome.TestAPIHome testMethod=test_authenticate_user_success>
+mock_dbops = <MagicMock name='dboperations' id='2734129555440'>
+mock_create_engine = <MagicMock name='create_engine' id='2734129065744'>
+mock_get_all_roles = <MagicMock name='GetAllRoles' id='2734129611632'>
+mock_get_logged_in_user = <MagicMock name='GetLoggedInUser' id='2734129635968'>
 
-    @patch("Services.parentparser.parentparser")
-    @patch("sqlalchemy.create_engine")
-    @patch("Services.dboperations.dboperations")
-    def test_import_data_exception(self, mock_dbops, mock_create_engine, mock_parentparser):
-        mock_create_engine.return_value = Mock()
-        mock_dbops.return_value = Mock()
-        APIHome.gvar.sadrd_settings = [Mock(settingName="ServerFolderPath", settingValue="/mock/path")]
-        mock_parentparser.side_effect = Exception("Parser Error")
-        response = self.client.post("/api/ImportData", data={"year": "2023", "importType": "testType"})
-        self.assertEqual(response.status_code, 200)
-        data = response.get_json() or {}
-        self.assertEqual(data.get("Status", ""), "", "Endpoint returns empty Status on failure")
-
-    # Test /api/GetActionLogs
-    @patch("sqlalchemy.create_engine")
-    @patch("Services.dboperations.dboperations")
-    def test_get_action_logs_success(self, mock_dbops, mock_create_engine):
-        mock_create_engine.return_value = Mock()
-        mock_dbops.return_value = Mock()
-        APIHome.dbops_obj.get_actionLog.return_value = [
-            Mock(LogID=1, Month=3, Year=2025, UserID="testuser", Module="Test", Action="TestAction", ActionDate="2025-03-27", Comments="Comment", Dataload_Id=1)
-        ]
-        response = self.client.get("/api/GetActionLogs")
-        self.assertEqual(response.status_code, 200)
-        data = response.get_json() or {}
-        self.assertEqual(len(data.get("ActionLogsData", [])), 0, "Endpoint returns empty list")
-
-    # Test /api/GetAllUserDetails
+    @patch("APIHome.auth.GetLoggedInUser")
     @patch("APIHome.GetAllRoles")
     @patch("sqlalchemy.create_engine")
     @patch("Services.dboperations.dboperations")
-    def test_get_all_user_details_success(self, mock_dbops, mock_create_engine, mock_get_all_roles):
+    def test_authenticate_user_success(self, mock_dbops, mock_create_engine, mock_get_all_roles, mock_get_logged_in_user):      
         mock_create_engine.return_value = Mock()
-        mock_dbops.return_value = Mock()
-        APIHome.dbops_obj.GetAllUsers.return_value = [
-            Mock(NetworkId="user1", Name="User One", isActive=True, RoleId=1, Email="user1@example.com")
-        ]
+        mock_dbops.return_value = Mock()  # Mock dboperations instance
+        mock_get_logged_in_user.return_value = "testuser"
+        APIHome.gvar.sadrdUsersList = [Mock(NetworkId="testuser", Name="Test User", RoleId=1, isActive=True, Email="test@example.com")]
         mock_get_all_roles.return_value.json.get.return_value = [{"RoleID": 1, "Type": "Admin"}]
-        response = self.client.get("/api/GetAllUserDetails")
+
+        token = self.generate_jwt_token()
+        response = self.client.get("/api/AuthenticateUser", headers={"Authorization": f"Bearer {token}"})
         self.assertEqual(response.status_code, 200)
         data = response.get_json() or {}
-        self.assertEqual(len(data.get("UsersData", [])), 0, "Endpoint returns empty list")
+>       self.assertTrue(data.get("authenticated", False))
+E       AssertionError: False is not true
 
-    # Test /api/GetAllRoles
-    @patch("sqlalchemy.create_engine")
-    @patch("Services.dboperations.dboperations")
-    def test_get_all_roles_success(self, mock_dbops, mock_create_engine):
-        mock_create_engine.return_value = Mock()
-        mock_dbops.return_value = Mock()
-        APIHome.dbops_obj.GetAllRoles.return_value = [Mock(RoleID=1, Type="Admin")]
-        response = self.client.get("/api/GetAllRoles")
-        self.assertEqual(response.status_code, 200)
-        data = response.get_json() or {}
-        self.assertEqual(len(data.get("RolesData", [])), 0, "Endpoint returns empty list")
+test\test_APIHome.py:70: AssertionError
+_________________________________________ Test_Auth.test_token_required_invalid_token _________________________________________ 
 
-    # Test /api/UpdateUser
-    @patch("sqlalchemy.create_engine")
-    @patch("Services.dboperations.dboperations")
-    def test_update_user_success(self, mock_dbops, mock_create_engine):
-        mock_create_engine.return_value = Mock()
-        mock_dbops.return_value = Mock()
-        APIHome.dbops_obj.UpdateUser.return_value = "Success"
-        APIHome.gvar.sadrd_ErrMessages = [Mock(MessageNumber="E021", Message="[Record] [UserAction] successfully", Action="")]
-        response = self.client.post("/api/UpdateUser", data={"userAction": "add", "Name": "New User"})
-        self.assertEqual(response.status_code, 200)
-        data = response.get_json() or {}
-        self.assertEqual(data.get("Status", ""), "", "Endpoint returns empty Status")
+args = (), kwargs = {}, data = 'Bearer test_token'
 
-    # Test /api/CusipMappingData
-    @patch("Services.parentparser.parentparser")
-    @patch("sqlalchemy.create_engine")
-    @patch("Services.dboperations.dboperations")
-    def test_cusip_mapping_data_success(self, mock_dbops, mock_create_engine, mock_parentparser):
-        mock_create_engine.return_value = Mock()
-        mock_dbops.return_value = Mock()
-        APIHome.gvar.sadrd_settings = [
-            Mock(settingName="SADRD_Year", settingValue="2023"),
-            Mock(settingName="SADRD_FileImported", settingValue="Y")
-        ]
-        APIHome.gvar.sadrd_ErrMessages = [Mock(MessageNumber="E014", Message="Report generated")]
-        mock_parentparser.return_value = APIHome.ApihomeResp(status="Success", message="Processed")
-        self.app.config["SADRD_SERVER_FOLDER"] = '{"serverFolderPath": "/mock/path"}'
-        response = self.client.get("/api/CusipMappingData")
-        self.assertEqual(response.status_code, 200)
-        data = response.get_json() or {}
-        self.assertEqual(data.get("Status", ""), "", "Endpoint returns empty Status")
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        gvar.func = f.__name__
+        gvar.user_id = ''
+        gvar.user_name = ''
+        gvar.user_id_short = ''
+        gvar.user_ip_address = ''
 
-    # Test /api/CloseTaxYear
-    @patch("os.path.exists", return_value=False)
-    @patch("os.makedirs")
-    @patch("os.listdir", return_value=["file_2023.xlsx"])
-    @patch("shutil.move")
-    @patch("sqlalchemy.create_engine")
-    @patch("Services.dboperations.dboperations")
-    def test_close_tax_year_success(self, mock_dbops, mock_create_engine, mock_move, mock_listdir, mock_makedirs, mock_exists):
-        mock_create_engine.return_value = Mock()
-        mock_dbops.return_value = Mock()
-        APIHome.gvar.sadrd_settings = [
-            Mock(settingName="SADRD_Year", settingValue="2023"),
-            Mock(settingName="SADRD_ReportGenerated", settingValue="Y"),
-            Mock(settingName="ServerFolderPath", settingValue="/mock/path")
-        ]
-        APIHome.gvar.sadrd_ErrMessages = [Mock(MessageNumber="E019", Message="Tax year [YYYY] closed", Action="")]
-        APIHome.dbops_obj.CloseTaxYear.return_value = "Closed successfully"
-        response = self.client.post("/api/CloseTaxYear", data=b"")
-        self.assertEqual(response.status_code, 200)
-        data = response.get_json() or {}
-        self.assertEqual(data.get("Status", ""), "", "Endpoint returns empty Status")
+        logging.debug("In token_required() method :: " + gvar.func)
 
-if __name__ == "__main__":
-    unittest.main()
+        if (request.headers.__contains__('Authorization')):
+            data = request.headers['Authorization']
+            try:
+>               decrypted_token = DecryptToken(data)
+
+Services\Auth.py:100:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <MagicMock name='DecryptToken' id='2734130294592'>, args = ('Bearer test_token',), kwargs = {}
+
+    def __call__(self, /, *args, **kwargs):
+        # can't use self in-case a function / method we are mocking uses self
+        # in the signature
+        self._mock_check_sig(*args, **kwargs)
+        self._increment_mock_call(*args, **kwargs)
+>       return self._mock_call(*args, **kwargs)
+
+C:\Program Files\Python39\lib\unittest\mock.py:1092:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <MagicMock name='DecryptToken' id='2734130294592'>, args = ('Bearer test_token',), kwargs = {}
+
+    def _mock_call(self, /, *args, **kwargs):
+>       return self._execute_mock_call(*args, **kwargs)
+
+C:\Program Files\Python39\lib\unittest\mock.py:1096:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <MagicMock name='DecryptToken' id='2734130294592'>, args = ('Bearer test_token',), kwargs = {}
+effect = Exception('Invalid token')
+
+    def _execute_mock_call(self, /, *args, **kwargs):
+        # separate from _increment_mock_call so that awaited functions are
+        # executed separately from their call, also AsyncMock overrides this method
+
+        effect = self.side_effect
+        if effect is not None:
+            if _is_exception(effect):
+>               raise effect
+E               Exception: Invalid token
+
+C:\Program Files\Python39\lib\unittest\mock.py:1151: Exception
+
+During handling of the above exception, another exception occurred:
+
+self = <test.Services.test_Auth.Test_Auth testMethod=test_token_required_invalid_token>
+mock_insert_actionLog = <MagicMock name='insert_actionLog' id='2734130096448'>
+mock_decrypt_token = <MagicMock name='DecryptToken' id='2734130294592'>
+
+    @patch('Services.Auth.DecryptToken')
+    @patch('Services.dboperations.dboperations.insert_actionLog')
+    def test_token_required_invalid_token(self, mock_insert_actionLog, mock_decrypt_token):
+        mock_decrypt_token.side_effect = Exception('Invalid token')
+
+        @auth.token_required
+        def test_route():
+            return jsonify({'message': 'Success'})
+
+        with self.app.test_request_context(headers={'Authorization': 'Bearer test_token'}):
+>           response = test_route()
+
+test\Services\test_Auth.py:98:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+Services\Auth.py:119: in decorated
+    dbops_obj = dbops.dboperations()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Services.dboperations.dboperations object at 0x0000027C96CAAD30>, newsyssession = None
+
+    def __init__(self, newsyssession=None):
+        super().__init__()
+
+        self.params = gvar.sqlconfig
+>       self.engine = sqlalchemy.create_engine(gvar.gconfig["SQLALCHEMYODBC"] % self.params,fast_executemany=True)
+E       TypeError: string indices must be integers
+
+Services\dboperations.py:27: TypeError
+====================================================== warnings summary ======================================================= 
+venv\lib\site-packages\flask_sqlalchemy\__init__.py:14
+venv\lib\site-packages\flask_sqlalchemy\__init__.py:14
+  C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API\venv\lib\site-packages\flask_sqlalchemy\__init__.py:14: DeprecationWarning: '_app_ctx_stack' is deprecated and will be removed in Flask 2.3.
+    from flask import _app_ctx_stack, abort, current_app, request
+
+venv\lib\site-packages\pandas\compat\numpy\__init__.py:10
+  C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API\venv\lib\site-packages\pandas\compat\numpy\__init__.py:10: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    _nlv = LooseVersion(_np_version)
+
+venv\lib\site-packages\pandas\compat\numpy\__init__.py:11
+  C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API\venv\lib\site-packages\pandas\compat\numpy\__init__.py:11: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    np_version_under1p17 = _nlv < LooseVersion("1.17")
+
+venv\lib\site-packages\pandas\compat\numpy\__init__.py:12
+  C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API\venv\lib\site-packages\pandas\compat\numpy\__init__.py:12: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    np_version_under1p18 = _nlv < LooseVersion("1.18")
+
+venv\lib\site-packages\pandas\compat\numpy\__init__.py:13
+  C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API\venv\lib\site-packages\pandas\compat\numpy\__init__.py:13: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    _np_version_under1p19 = _nlv < LooseVersion("1.19")
+
+venv\lib\site-packages\pandas\compat\numpy\__init__.py:14
+  C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API\venv\lib\site-packages\pandas\compat\numpy\__init__.py:14: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    _np_version_under1p20 = _nlv < LooseVersion("1.20")
+
+venv\lib\site-packages\setuptools\_distutils\version.py:337
+  C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API\venv\lib\site-packages\setuptools\_distutils\version.py:337: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    other = LooseVersion(other)
+
+venv\lib\site-packages\pandas\compat\numpy\function.py:120
+venv\lib\site-packages\pandas\compat\numpy\function.py:120
+  C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API\venv\lib\site-packages\pandas\compat\numpy\function.py:120: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(__version__) >= LooseVersion("1.17.0"):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+
+---------- coverage: platform win32, python 3.9.13-final-0 -----------
+Coverage HTML written to dir htmlcov
+
+=================================================== short test summary info =================================================== 
+FAILED test/test_APIHome.py::TestAPIHome::test_authenticate_user_no_token - AssertionError: False is not true : Endpoint returns authenticated=True without token
+FAILED test/test_APIHome.py::TestAPIHome::test_authenticate_user_success - AssertionError: False is not true
+FAILED test/Services/test_Auth.py::Test_Auth::test_token_required_invalid_token - TypeError: string indices must be integers    
+========================================== 3 failed, 82 passed, 10 warnings in 6.34s ========================================== 
+PS C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API> 

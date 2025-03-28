@@ -12,11 +12,9 @@ Hint: make sure your test modules/packages have valid Python names.
 Traceback:
 C:\Program Files\Python39\lib\importlib\__init__.py:127: in import_module
     return _bootstrap._gcd_import(name[level:], package, level)
-test\test_SADRD_Dataparser.py:18: in <module>
+test\test_SADRD_Dataparser.py:15: in <module>
     import SADRD_Dataparser
 E   ModuleNotFoundError: No module named 'SADRD_Dataparser'
-------------------------------------------------------- Captured stdout ------------------------------------------------------- 
-Parent directory: C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API
 ====================================================== warnings summary ======================================================= 
 venv\lib\site-packages\pandas\compat\numpy\__init__.py:10
   C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API\venv\lib\site-packages\pandas\compat\numpy\__init__.py:10: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
@@ -60,5 +58,5 @@ Coverage HTML written to dir htmlcov
 =================================================== short test summary info =================================================== 
 ERROR test/test_SADRD_Dataparser.py
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
-================================================ 10 warnings, 1 error in 2.71s ================================================ 
+================================================ 10 warnings, 1 error in 2.64s ================================================ 
 PS C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API> 

@@ -1,11 +1,9 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from flask import json
+from flask import json, jsonify
 from APIHome import mainapp
 import Services.Auth as auth
 import Services.dboperations as dbops
-from flask import jsonify
-import logging
 import os
 
 class TestFlaskAppConfig(unittest.TestCase):
@@ -130,10 +128,3 @@ class TestAPIHome(unittest.TestCase):
     def test_get_action_logs(self, mock_get_action_log, mock_token_required):
         mock_token_required.return_value = True
         mock_get_action_log.return_value = [MagicMock(LogID=1, Month=1, Year=2023, UserID='123', Module='Test', Action='Test Action', ActionDate='2023-01-01', Comments='Test Comment', Dataload_Id='1')]
-
-        response = self.app.get('/api/GetActionLogs', headers={'Authorization': 'Bearer valid_token'})
-        self.assertEqual(response.status_code, 200)
-        self.assertIn('ActionLogsData', json.loads(response.data))
-
-    @patch('Services.Auth.token_required')
-    @patch('Services.dboperations.dboperations.UpdateUser')

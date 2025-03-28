@@ -1,125 +1,78 @@
-import unittest
-from unittest.mock import patch, Mock
-import pandas as pd
-from datetime import datetime
+ pytest --cov . test/ --cov-report html
+===================================================== test session starts =====================================================
+platform win32 -- Python 3.9.13, pytest-7.2.0, pluggy-1.5.0
+rootdir: C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API
+plugins: Flask-Dance-3.2.0, cov-4.0.0
+collected 76 items / 1 error
 
-# Assuming SADRD_Dataparser.py is in the same directory or in your PYTHONPATH
-import SADRD_Dataparser
+=========================================================== ERRORS ============================================================ 
+_______________________________________ ERROR collecting test/test_SADRD_Dataparser.py ________________________________________ 
+venv\lib\site-packages\_pytest\python.py:618: in _importtestmodule
+    mod = import_path(self.path, mode=importmode, root=self.config.rootpath)
+venv\lib\site-packages\_pytest\pathlib.py:533: in import_path
+    importlib.import_module(module_name)
+C:\Program Files\Python39\lib\importlib\__init__.py:127: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+<frozen importlib._bootstrap>:1030: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1007: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:986: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:680: in _load_unlocked
+    ???
+venv\lib\site-packages\_pytest\assertion\rewrite.py:159: in exec_module
+    source_stat, co = _rewrite_test(fn, self.config)
+venv\lib\site-packages\_pytest\assertion\rewrite.py:337: in _rewrite_test
+    tree = ast.parse(source, filename=strfn)
+C:\Program Files\Python39\lib\ast.py:50: in parse
+    return compile(source, filename, mode, flags,
+E     File "C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API\test\test_SADRD_Dataparser.py", line 126
+E
+E       ^
+E   SyntaxError: unexpected EOF while parsing
+====================================================== warnings summary ======================================================= 
+venv\lib\site-packages\pandas\compat\numpy\__init__.py:10
+  C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API\venv\lib\site-packages\pandas\compat\numpy\__init__.py:10: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    _nlv = LooseVersion(_np_version)
 
-class TestSADRDDataparser(unittest.TestCase):
+venv\lib\site-packages\pandas\compat\numpy\__init__.py:11
+  C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API\venv\lib\site-packages\pandas\compat\numpy\__init__.py:11: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    np_version_under1p17 = _nlv < LooseVersion("1.17")
 
-    @patch('SADRD_Dataparser.dbops.dboperations')
-    @patch('SADRD_Dataparser.gvar')
-    def test_parseAnnualStmntFile_success(self, mock_gvar, mock_dbops):
-        """Tests successful execution of parseAnnualStmntFile."""
+venv\lib\site-packages\pandas\compat\numpy\__init__.py:12
+  C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API\venv\lib\site-packages\pandas\compat\numpy\__init__.py:12: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    np_version_under1p18 = _nlv < LooseVersion("1.18")
 
-        mock_dbops_instance = Mock()
-        mock_dbops.return_value = mock_dbops_instance
-        mock_gvar.sadrdYear = 2025  # Example year
-        mock_gvar.user_id = "test_user"
-        mock_gvar.INPROGRESS = "INPROGRESS"
-        mock_gvar.COMPLETED = "COMPLETED"
-        mock_gvar.sadrd_settings = [Mock(settingName='SADRD_Year', settingValue='2025')]
-        mock_gvar.filesLoadedCount = 0
+venv\lib\site-packages\pandas\compat\numpy\__init__.py:13
+  C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API\venv\lib\site-packages\pandas\compat\numpy\__init__.py:13: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    _np_version_under1p19 = _nlv < LooseVersion("1.19")
 
-        mock_dbops_instance.executeNIR_SP.return_value = pd.DataFrame({'Cusip': ['12345-AB', '67890-CD'], 'DividendAmt': [100, 200]})
-        mock_dbops_instance.loaddata.return_value = None
-        mock_dbops_instance.executeSADRD_SP.return_value = None
+venv\lib\site-packages\pandas\compat\numpy\__init__.py:14
+  C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API\venv\lib\site-packages\pandas\compat\numpy\__init__.py:14: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    _np_version_under1p20 = _nlv < LooseVersion("1.20")
 
-        SADRD_Dataparser.parseAnnualStmntFile("TestCompany", "Part 2 Section 1", "TestAction", 2025, "")
+venv\lib\site-packages\setuptools\_distutils\version.py:337
+  C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API\venv\lib\site-packages\setuptools\_distutils\version.py:337: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    other = LooseVersion(other)
 
-        mock_dbops_instance.executeNIR_SP.assert_called_once()
-        mock_dbops_instance.insert_dataloadkey.assert_called_once()
-        mock_dbops_instance.loaddata.assert_called()  # Called multiple times
-        mock_dbops_instance.executeSADRD_SP.assert_called_once()
+venv\lib\site-packages\pandas\compat\numpy\function.py:120
+venv\lib\site-packages\pandas\compat\numpy\function.py:120
+  C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API\venv\lib\site-packages\pandas\compat\numpy\function.py:120: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(__version__) >= LooseVersion("1.17.0"):
 
-        self.assertEqual(mock_gvar.filesLoadedCount, 1)
+venv\lib\site-packages\flask_sqlalchemy\__init__.py:14
+venv\lib\site-packages\flask_sqlalchemy\__init__.py:14
+  C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API\venv\lib\site-packages\flask_sqlalchemy\__init__.py:14: DeprecationWarning: '_app_ctx_stack' is deprecated and will be removed in Flask 2.3.
+    from flask import _app_ctx_stack, abort, current_app, request
 
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
 
-    @patch('SADRD_Dataparser.dbops.dboperations')
-    @patch('SADRD_Dataparser.gvar')
-    def test_parseAnnualStmntFile_secondaryValidation(self, mock_gvar, mock_dbops):
-         """Tests the early return when SecondaryValidation is not empty."""
-         mock_dbops_instance = Mock()
-         mock_dbops.return_value = mock_dbops_instance
-         SADRD_Dataparser.parseAnnualStmntFile("TestCompany", "Part 2 Section 1", "TestAction", 2025, "validation")
-         mock_dbops_instance.executeNIR_SP.assert_not_called()
+---------- coverage: platform win32, python 3.9.13-final-0 -----------
+Coverage HTML written to dir htmlcov
 
-
-    @patch('SADRD_Dataparser.dbops.dboperations')
-    @patch('SADRD_Dataparser.gvar')
-    def test_parseAnnualStmntFile_exception(self, mock_gvar, mock_dbops):
-        """Tests exception handling in parseAnnualStmntFile."""
-        mock_dbops_instance = Mock()
-        mock_dbops.return_value = mock_dbops_instance
-        mock_dbops_instance.executeNIR_SP.side_effect = Exception("Test Exception")
-
-        with self.assertRaises(Exception) as context:
-            SADRD_Dataparser.parseAnnualStmntFile("TestCompany", "Part 2 Section 1", "TestAction", 2025, "")
-
-        self.assertEqual(str(context.exception), "Test Exception")
-        mock_dbops_instance.insert_actionLog.assert_called()  # Check that logging occurred
-
-
-    @patch('SADRD_Dataparser.dbops.dboperations')
-    @patch('SADRD_Dataparser.gvar')
-    @patch('pandas.ExcelFile')
-    def test_parseCusipQualFTCFile_success(self, mock_excel_file, mock_gvar, mock_dbops):
-        """Tests successful execution of parseCusipQualFTCFile."""
-        mock_dbops_instance = Mock()
-        mock_dbops.return_value = mock_dbops_instance
-        mock_gvar.sadrdYear = 2025
-        mock_gvar.user_id = "test_user"
-        mock_gvar.INPROGRESS = "INPROGRESS"
-        mock_gvar.COMPLETED = "COMPLETED"
-        mock_gvar.fileErrorMessages = ""
-        mock_gvar.sadrd_settings = [Mock(settingName='Valid_Company', settingValue='JHFunds'),
-                                   Mock(settingName='Valid_Company', settingValue='RPS')]
-        mock_gvar.filesLoadedCount = 0
-
-        mock_excel = Mock()
-        mock_excel.book.worksheets = [Mock(title='JHFunds', sheet_state='visible')]
-        mock_excel.parse.return_value = pd.DataFrame({
-            'Year': [2025],
-            'Company': ['JHFunds'],
-            'Cusip': ['123'],
-            'CusipName': ['Test'],
-            'Bank': ['Bank'],
-            'FTC': [1.0],
-            'QualPct': [2.0]
-        })
-        mock_excel_file.return_value = mock_excel
-        mock_dbops_instance.insert_dataloadkey.return_value = None
-        mock_dbops_instance.loaddata.return_value = None
-
-        SADRD_Dataparser.parseCusipQualFTCFile("TestAction", "test.xlsx", 2025, "")
-
-        mock_dbops_instance.insert_dataloadkey.assert_called_once()
-        mock_dbops_instance.loaddata.assert_called_once()
-        self.assertEqual(mock_gvar.filesLoadedCount, 1)
-
-    @patch('SADRD_Dataparser.dbops.dboperations')
-    @patch('SADRD_Dataparser.gvar')
-    @patch('pandas.ExcelFile')
-    def test_parseCusipQualFTCFile_secondaryValidation_year_mismatch(self, mock_excel_file, mock_gvar, mock_dbops):
-        """Tests secondary validation with year mismatch."""
-        mock_dbops_instance = Mock()
-        mock_dbops.return_value = mock_dbops_instance
-        mock_gvar.sadrdYear = 2025
-        mock_gvar.fileErrorMessages = ""
-        mock_gvar.sadrd_settings = [Mock(settingName='Valid_Company', settingValue='JHFunds')]
-
-        mock_excel = Mock()
-        mock_excel.book.worksheets = [Mock(title='JHFunds', sheet_state='visible')]
-        mock_excel.parse.return_value = pd.DataFrame({'Year': [2024], 'Company': ['JHFunds']}) # Year mismatch
-        mock_excel_file.return_value = mock_excel
-
-        SADRD_Dataparser.parseCusipQualFTCFile("TestAction", "test.xlsx", 2025, "validation")
-
-        self.assertIn("E005", mock_gvar.fileErrorMessages)
-        mock_dbops_instance.insert_dataloadkey.assert_not_called()
-
-
-    @patch('SADRD_Dataparser.dbops.dboperations')
-    @patch('SADRD_Dataparser.gvar')
-    @patch
+=================================================== short test summary info ===================================================
+ERROR test/test_SADRD_Dataparser.py
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+================================================ 10 warnings, 1 error in 3.01s ================================================
+PS C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API> 

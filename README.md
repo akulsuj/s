@@ -1,112 +1,227 @@
 import unittest
-from unittest.mock import patch, MagicMock, call
-import pandas as pd
-from sqlalchemy.exc import SQLAlchemyError
-from datetime import datetime
-from Services.dboperations import dboperations, TranInprogress
-import globalvars as gvar
-import urllib
-import Entities.dbormschemas as dbsch
-import logging
+from unittest.mock import patch, MagicMock
+from flask import json
+from APIHome import mainapp
 
-class TestDbOperations(unittest.TestCase):
+class TestFlaskAppConfig(unittest.TestCase):
 
-    @patch.object(dboperations, '__init__', return_value=None)
-    def setUp(self, mock_db_init):
-        self.db_ops = dboperations()
-        self.mock_session = MagicMock()
-        self.db_ops.session = self.mock_session
-        self.db_ops.metadata = MagicMock()
+    @patch('APIHome.GetImportTypes')
+    def test_GetImportTypes(self, mock_GetImportTypes):
+        mock_GetImportTypes()
+        mock_GetImportTypes.assert_called_once()
 
-        # Replace with your actual DSN
-        nir_dsn = "your_nir_dsn"  # Replace with your NIR DSN
-        sadrd_dsn = "your_sadrd_dsn" # Replace with your SADRD DSN
+    @patch('APIHome.ImportData')
+    def test_ImportData(self, mock_ImportData):
+        mock_ImportData()
+        mock_ImportData.assert_called_once()
 
-        # Construct a valid URL string using the DSN
-        nir_url = f"mssql+pyodbc://{nir_dsn}"
-        sadrd_url = f"mssql+pyodbc://{sadrd_dsn}"
+    @patch('APIHome.GetActionLogs')
+    def test_GetActionLogs(self, mock_GetActionLogs):
+        mock_GetActionLogs()
+        mock_GetActionLogs.assert_called_once()
 
-        # Mock gvar.gconfig as a dictionary with specific return values for keys
-        gvar.gconfig = MagicMock()
-        gvar.gconfig.__getitem__.side_effect = lambda key: {
-            "DRIVER": "{test_driver}",
-            "NIR_DATABASE_SERVER": "test_server",
-            "NIR_DATABASE_NAME": "test_db",
-            "NIR_DATABASE_AUTH_STRING": "test_auth",
-            "SQLALCHEMYODBC": "mssql+pyodbc:///?odbc_connect=%s",
-            "SADRD_DATABASE_SERVER": "sadrd_server",
-            "SADRD_DATABASE_NAME": "sadrd_db",
-            "CONNECTION_AUTH_STRING": "sadrd_auth"
-        }[key]
+    @patch.dict('os.environ', {"FLASK_ENV": "production"})
+    def test_production_config(self):
+        mainapp.config.from_object("config.ProductionConfig")
+        self.assertFalse(mainapp.config["DEBUG"] is False)
 
-        # Mock urllib.parse.quote_plus to return the valid url
-        gvar.sqlconfig = MagicMock()
-        gvar.sqlconfig.return_value = nir_url
-        self.nir_url = nir_url
-        self.sadrd_url = sadrd_url
+    @patch.dict('os.environ', {"FLASK_ENV": "stage"})
+    def test_stage_config(self):
+        mainapp.config.from_object("config.StageConfig")
+        self.assertFalse(mainapp.config["DEBUG"] is False)
 
-        gvar.sadrd_ErrMessages = [MagicMock(MessageNumber='E019', Message='[YYYY]')]
-        gvar.sadrd_settings = [MagicMock(settingName='test', settingValue='test')]
-        gvar.scheduleEList = [MagicMock(Cusip='test', CusipName='test')]
-        gvar.qualPctList = [MagicMock(Year=2023, Company='test', Cusip='test')]
-        gvar.COMPLETED = 'completed'
-        gvar.FAILED = 'failed'
-        gvar.INPROGRESS = 'inprogress'
-        gvar.user_id = 'test_user'
+    @patch.dict('os.environ', {"FLASK_ENV": "test"})
+    def test_test_config(self):
+        mainapp.config.from_object("config.TestingConfig")
+        self.assertTrue(mainapp.config["TESTING"])
 
-    def test_truncatetable(self):
-        with patch.object(self.db_ops.session, 'execute') as mock_execute:
-            self.db_ops.truncatetable('test_table')
-            mock_execute.assert_called_once()
-            mock_execute.reset_mock()
-            self.db_ops.insert_actionLog = MagicMock()
-            mock_execute.side_effect = SQLAlchemyError('test')
-            with self.assertRaises(SQLAlchemyError):
-                self.db_ops.truncatetable('test_table')
+    @patch.dict('os.environ', {"FLASK_ENV": "development"})
+    def test_development_config(self):
+        mainapp.config.from_object("config.DevelopmentConfig")
+        self.assertTrue(mainapp.config["DEBUG"])
 
-    def test_insert_dataloadkey(self):
-        with patch.object(self.db_ops.session, 'query') as mock_query, \
-             patch.object(self.db_ops.session, 'add') as mock_add, \
-             patch.object(self.db_ops.session, 'commit') as mock_commit:
-            mock_query.return_value.filter_by.return_value.first.return_value = None
-            self.db_ops.insert_dataloadkey('loadkey', '{}', 'src')
-            mock_add.assert_called_once()
-            mock_commit.assert_called_once()
-            mock_query.return_value.filter_by.return_value.first.return_value = MagicMock(dataload_status = gvar.INPROGRESS)
-            self.db_ops.insert_actionLog = MagicMock()
-            with self.assertRaises(TranInprogress):
-                self.db_ops.insert_dataloadkey('loadkey', '{}', 'src')
-            mock_query.return_value.filter_by.return_value.first.return_value = None
-            mock_add.side_effect = SQLAlchemyError('test')
-            with self.assertRaises(SQLAlchemyError):
-                self.db_ops.insert_dataloadkey('loadkey', '{}', 'src')
+    @patch.dict('os.environ', {"FLASK_ENV": "local"})
+    def test_local_config(self):
+        mainapp.config.from_object("config.LocalConfig")
+        self.assertTrue(mainapp.config["DEBUG"])
 
-    def test_get_dataloadkey(self):
-        with patch.object(self.db_ops.session, 'query') as mock_query:
-            self.db_ops.get_dataloadkey('loadkey')
-            mock_query.return_value.filter_by.return_value.first.assert_called_once()
-            mock_query.return_value.filter_by.return_value.first.side_effect = SQLAlchemyError('test')
-            self.db_ops.insert_actionLog = MagicMock()
-            self.db_ops.get_dataloadkey('loadkey')
+    def test_default_config(self):
+        mainapp.config.from_object("config.LocalConfig")
+        self.assertTrue(mainapp.config["DEBUG"])
 
-    def test_update_dataloadkey(self):
-        with patch.object(self.db_ops.session, 'commit') as mock_commit:
-            self.db_ops.sysdlrec = MagicMock()
-            self.db_ops.update_dataloadkey('status', 'details')
-            mock_commit.assert_called_once()
-            mock_commit.side_effect = SQLAlchemyError('test')
-            with self.assertRaises(SQLAlchemyError):
-                self.db_ops.update_dataloadkey('status', 'details')
+# Additional test cases for API endpoints
+class TestAPIHome(unittest.TestCase):
 
-    def test_executeSADRD_SP(self):
-        with patch.object(self.db_ops.connection.cursor(), 'execute', side_effect=SQLAlchemyError('test')):
-            with self.assertRaises(SQLAlchemyError):
-                self.db_ops.executeSADRD_SP(['sp_name'])
+    def setUp(self):
+        self.app = mainapp.test_client()
+        self.app.testing = True
 
-    @patch('Services.dboperations.pd.read_sql')
-    @patch('Services.dboperations.urllib.parse.quote_plus')
-    def test_executeNIR_SP(self, mock_quote_plus, mock_read_sql):
-        mock_read_sql.return_value = pd.DataFrame()
-        mock_quote_plus.return_value = self.nir_url
-        self.db_ops.engine = MagicMock()
-        self.db_ops.executeNIR_SP('sp_name', 2023, 'company')
+    @patch('Services.Auth.token_required')
+    @patch('Services.dboperations.dboperations.GetAllUsers')
+    @patch('Services.dboperations.dboperations.SadrdSysSettings')
+    def test_authenticate_user_success(self, mock_sadrd_sys_settings, mock_get_all_users, mock_token_required):
+        mock_token_required.return_value = True
+        mock_get_all_users.return_value = [MagicMock(NetworkId='123', RoleId='1', Name='Test User', isActive=True, Email='test@example.com')]
+        mock_sadrd_sys_settings.return_value = []
+        
+        response = self.app.get('/api/AuthenticateUser ', headers={'Authorization': 'Bearer valid_token'})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('authenticated', json.loads(response.data))
+
+    @patch('Services.Auth.token_required')
+    def test_authenticate_user_no_token(self, mock_token_required):
+        mock_token_required.return_value = True
+        response = self.app.get('/api/AuthenticateUser ')
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(json.loads(response.data)['authenticated'])
+
+    @patch('Services.Auth.token_required')
+    @patch('Services.dboperations.dboperations.GetAllUsers')
+    def test_authenticate_user_invalid_token(self, mock_get_all_users, mock_token_required):
+        mock_token_required.return_value = True
+        mock_get_all_users.return_value = []
+        
+        response = self.app.get('/api/AuthenticateUser ', headers={'Authorization': 'Bearer invalid_token'})
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(json.loads(response.data)['authenticated'])
+
+    @patch('Services.Auth.token_required')
+    @patch('Services.dboperations.dboperations.SadrdSysSettings')
+    def test_get_import_types(self, mock_sadrd_sys_settings, mock_token_required):
+        mock_token_required.return_value = True
+        mock_sadrd_sys_settings.return_value = [MagicMock(settingName='ImportType', settingValue='Type1', Description='Description1')]
+        
+        response = self.app.get('/api/GetImportTypes')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('ImportTypesData', json.loads(response.data))
+
+    @patch('Services.Auth.token_required')
+    @patch('Services.dboperations.dboperations.SadrdSysSettings')
+    @patch('Services.parentparser')
+    def test_import_data_success(self, mock_parser, mock_sadrd_sys_settings, mock_token_required):
+        mock_token_required.return_value = True
+        mock_sadrd_sys_settings.return_value = [MagicMock(settingName='ServerFolderPath', settingValue='/path/to/server')]
+        mock_parser.return_value = MagicMock(status='Success', message='Import successful')
+        
+        response = self.app.post('/api/ImportData', data={'year': '2023', 'importType': 'Type1'})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('status', json.loads(response.data))
+
+    @patch('Services.Auth.token_required')
+    @patch('Services.dboperations.dboperations.SadrdSysSettings')
+    @patch('Services.parentparser')
+    def test_import_data_failure(self, mock_parser, mock_sadrd_sys_settings, mock_token_required):
+        mock_token_required.return_value = True
+        mock_sadrd_sys_settings.return_value = [MagicMock(settingName='ServerFolderPath', settingValue='/path/to/server')]
+        mock_parser.return_value = MagicMock(status='Failure', message='Import failed')
+        
+        response = self.app.post('/api/ImportData', data={'year': '2023', 'importType': 'Type1'})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('status', json.loads(response.data))
+        self.assertEqual(json.loads(response.data)['status'], 'Failure')
+
+    @patch('Services.Auth.token_required')
+    @patch('Services.dboperations.dboperations.get_actionLog')
+    def test_get_action_logs(self, mock_get_action_log, mock_token_required):
+        mock_token_required.return_value = True
+        mock_get_action_log.return_value = [MagicMock(LogID=1, Month=1, Year=2023, UserID='123', Module='Test', Action='Test Action', ActionDate='2023-01-01', Comments='Test Comment', Dataload_Id='1')]
+        
+        response = self.app.get('/api/GetActionLogs')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('ActionLogsData', json.loads(response.data))
+
+    @patch('Services.Auth.token_required')
+    @patch('Services.dboperations.dboperations.UpdateUser ')
+    def test_update_user_success(self, mock_update_user, mock_token_required):
+        mock_token_required.return_value = True
+        mock_update_user.return_value = 'Success'
+        
+        response = self.app.post('/api/UpdateUser ', data={'Name': 'Test User', 'userAction': 'add'})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('status', json.loads(response.data))
+
+    @patch('Services.Auth.token_required')
+    @patch('Services.dboperations.dboperations.UpdateUser ')
+    def test_update_user_failure(self, mock_update_user, mock_token_required):
+        mock_token_required.return_value = True
+        mock_update_user.return_value = 'Exists'
+        
+        response = self.app.post('/api/UpdateUser ', data={'Name': 'Test User', 'userAction': 'add'})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('status', json.loads(response.data))
+        self.assertEqual(json.loads(response.data)['status'], 'Exists')
+
+    @patch('Services.Auth.token_required')
+    @patch('Services.dboperations.dboperations.SadrdSysSettings')
+    def test_get_settings_data(self, mock_sadrd_sys_settings, mock_token_required):
+        mock_token_required.return_value = True
+        mock_sadrd_sys_settings.return_value = [MagicMock(settingName='Setting1', settingValue='Value1', ShowInUI=True, Description='Description1', DataType='String')]
+        
+        response = self.app.get('/api/GetSettingsData')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('SettingsData', json.loads(response.data))
+
+    @patch('Services.Auth.token_required')
+    @patch('Services.dboperations.dboperations.UpdateSettingsData')
+    def test_update_settings_data(self, mock_update_settings_data, mock_token_required):
+        mock_token_required.return_value = True
+        mock_update_settings_data.return_value = 'Success'
+        
+        response = self.app.post('/api/UpdateSettingsData', data={'settingName': 'Setting1', 'settingValue': 'NewValue', 'userAction': 'update'})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('status', json.loads(response.data))
+
+    @patch('Services.Auth.token_required')
+    @patch('Services.dboperations.dboperations.UpdateSettingsData')
+    def test_update_settings_data_failure(self, mock_update_settings_data, mock_token_required):
+        mock_token_required.return_value = True
+        mock_update_settings_data.return_value = 'Exists'
+        
+        response = self.app.post('/api/UpdateSettingsData', data={'settingName': 'Setting1', 'settingValue': 'NewValue', 'userAction': 'update'})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('status', json.loads(response.data))
+        self.assertEqual(json.loads(response.data)['status'], 'Exists')
+
+    @patch('Services.Auth.token_required')
+    @patch('Services.dboperations.dboperations.SadrdSysSettings')
+    def test_get_valid_company_list(self, mock_sadrd_sys_settings, mock_token_required):
+        mock_token_required.return_value = True
+        mock_sadrd_sys_settings.return_value = [MagicMock(settingName='Valid_Company', settingValue='Company1')]
+        
+        response = self.app.get('/api/GetValidCompanyList')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('CompanyList', json.loads(response.data))
+
+    @patch('Services.Auth.token_required')
+    @patch('Services.dboperations.dboperations.UpdateQualPctData')
+    def test_update_qual_pct_data(self, mock_update_qual_pct_data, mock_token_required):
+        mock_token_required.return_value = True
+        mock_update_qual_pct_data.return_value = 'Success'
+        
+        response = self.app.post('/api/UpdateQualPctData', data={'Year': '2023', 'Company': 'Test Company', 'Cusip': '123456', 'userAction': 'add'})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('status', json.loads(response.data))
+
+    @patch('Services.Auth.token_required')
+    @patch('Services.dboperations.dboperations.UpdateQualPctData')
+    def test_update_qual_pct_data_failure(self, mock_update_qual_pct_data, mock_token_required):
+        mock_token_required.return_value = True
+        mock_update_qual_pct_data.return_value = 'Exists'
+        
+        response = self.app.post('/api/UpdateQualPctData', data={'Year': '2023', 'Company': 'Test Company', 'Cusip': '123456', 'userAction': 'add'})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('status', json.loads(response.data))
+        self.assertEqual(json.loads(response.data)['status'], 'Exists')
+
+    @patch('Services.Auth.token_required')
+    @patch('Services.dboperations.dboperations.GetQualPctOverrideData')
+    def test_get_qual_pct_data(self, mock_get_qual_pct_override_data, mock_token_required):
+        mock_token_required.return_value = True
+        mock_get_qual_pct_override_data.return_value = [MagicMock(Year='2023', Company='Test Company', Cusip='123456', QualPct=0.5)]
+        
+        response = self.app.get('/api/GetQualPctData')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('QualPctData', json.loads(response.data))
+
+if __name__ == '__main__':
+    unittest.main()

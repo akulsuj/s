@@ -15,7 +15,7 @@ class TestFlaskAppConfig(unittest.TestCase):
     def tearDown(self):
         self.app_context.pop()
 
-    @patch('APIHome.dboperations.dboperations')
+    @patch('Services.dboperations.dboperations')
     def test_GetImportTypes(self, MockDbOps):
         mock_dbops_instance = MockDbOps.return_value
         mock_dbops_instance.SadrdSysSettings.return_value = [MagicMock(settingName='ImportType', settingValue='Type1', Description='Description1')]
@@ -24,8 +24,8 @@ class TestFlaskAppConfig(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('ImportTypesData', json.loads(response.data))
 
-    @patch('APIHome.dboperations.dboperations')
-    @patch('APIHome.parentparser.parentparser')
+    @patch('Services.dboperations.dboperations')
+    @patch('Services.parentparser.parentparser')
     def test_ImportData(self, MockParser, MockDbOps):
         mock_dbops_instance = MockDbOps.return_value
         mock_dbops_instance.SadrdSysSettings.return_value = [MagicMock(settingName='ServerFolderPath', settingValue='/path/to/server')]
@@ -37,7 +37,7 @@ class TestFlaskAppConfig(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('status', json.loads(response.data))
 
-    @patch('APIHome.dboperations.dboperations')
+    @patch('Services.dboperations.dboperations')
     def test_GetActionLogs(self, MockDbOps):
         mock_dbops_instance = MockDbOps.return_value
         mock_dbops_instance.get_actionLog.return_value = [MagicMock(LogID=1, Month=1, Year=2023, UserID='123', Module='Test', Action='Test Action', ActionDate='2023-01-01', Comments='Test Comment', Dataload_Id='1')]
@@ -135,4 +135,5 @@ class TestAPIHome(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('status', json.loads(response.data))
 
-    @
+    @patch('Services.Auth.token_required')
+    @patch('Services.dboperations.dboperations')

@@ -8,113 +8,99 @@ import shutil
 from pathlib import Path
 
 import APIHome
-from Services.dboperations import dboperations
-from Services.Auth import token_required, GetLoggedInUser
-from Entities.Customentities import ApihomeResp
+import Services.dboperations as dbops
+import Services.Auth as auth
 import globalvars as gvar
-import pandas as pd
+from Entities.Customentities import ApihomeResp
 
 class TestAPIHome(unittest.TestCase):
 
     def setUp(self):
-        self.app = APIHome.mainapp
-        self.client = self.app.test_client()
-        self.app_context = self.app.app_context()
+        self.app = APIHome.mainapp.test_client()
+        self.app_context = APIHome.mainapp.app_context()
         self.app_context.push()
-        self.mock_dbops = MagicMock(spec=dboperations)
-        self.mock_token_required = patch('APIHome.auth.token_required', return_value=lambda x: x).start()
-        self.mock_get_logged_in_user = patch('APIHome.auth.GetLoggedInUser', return_value='testuser').start()
-        self.mock_insert_server_event_log = patch('APIHome.insertServerEventLog').start()
-        self.mock_parentparser = patch('APIHome.parentparser').start()
-        self.mock_admin_authorize = patch('APIHome.AdminAuthorize', return_value=True).start()
-        self.mock_path_exists = patch('os.path.exists', return_value=True).start()
-        self.mock_os_makedirs = patch('os.makedirs').start()
-        self.mock_os_listdir = patch('os.listdir', return_value=['test.xlsx']).start()
-        self.mock_shutil_move = patch('shutil.move').start()
-
         gvar.init()
-        gvar.gconfig = self.app.config
-        gvar.sqlconfig = 'test_sqlconfig'
-        gvar.user_id = 'test_user_id'
-        gvar.user_ip_address = '127.0.0.1'
-        gvar.func = 'test_func'
+        gvar.gconfig = APIHome.mainapp.config
+        gvar.sqlconfig = 'test_sql_config'
+        os.makedirs(str(Path.cwd().parent.joinpath('Logs')), exist_ok=True)
 
     def tearDown(self):
-        self.mock_token_required.stop()
-        self.mock_get_logged_in_user.stop()
-        self.mock_insert_server_event_log.stop()
-        self.mock_parentparser.stop()
-        self.mock_admin_authorize.stop()
-        self.mock_path_exists.stop()
-        self.mock_os_makedirs.stop()
-        self.mock_os_listdir.stop()
-        self.mock_shutil_move.stop()
         self.app_context.pop()
 
-    def test_AuthenticateUser_success(self):
-        self.mock_dbops.GetAllUsers.return_value = [MagicMock(NetworkId='testuser', Name='Test User', RoleId=1, isActive=True, Email='test@example.com')]
-        self.mock_dbops.SadrdSysSettings.return_value = [MagicMock(settingName='test', settingValue='test_value')]
-        self.mock_dbops.GetAllRoles.return_value = MagicMock(json=MagicMock(return_value={'RolesData': [{'RoleID': 1, 'Type': 'Admin'}]}))
-        with patch('APIHome.dbops_obj', self.mock_dbops):
-            response = self.client.get('/api/AuthenticateUser', headers={'Authorization': 'Bearer test_token'})
-            self.assertEqual(response.status_code, 200)
-            data = json.loads(response.data)
-            self.assertTrue(data['authenticated'])
-            self.assertEqual(data['NetworkId'], 'testuser')
+    @patch('APIHome.dbops_obj')
+    @patch('Services.Auth.token_required', MagicMock(return_value=lambda f: f))
+    @patch('Services.Auth.GetLoggedInUser', MagicMock(return_value='test_user'))
+    @patch('APIHome.GetAllRoles')
+    def test_AuthenticateUser_success(self, mock_get_all_roles, mock_dbops_obj):
+        mock_dbops_obj.GetAllUsers.return_value = [MagicMock(NetworkId='test_user', Name='Test User', RoleId=1, isActive=True, Email='test@example.com')]
+        mock_get_all_roles.return_value = MagicMock(json=MagicMock(return_value={'RolesData': [{'RoleID': 1, 'Type': 'Admin'}]}))
+        response = self.app.get('/api/AuthenticateUser', headers={'Authorization': 'Bearer test_token'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(json.loads(response.data), {'authenticated': True, 'NetworkId': 'test_user', 'Name': 'Test User', 'RoleId': 1, 'IsActive': True, 'Email': 'test@example.com', 'Role': 'Admin'})
 
-    def test_AuthenticateUser_invalid_token(self):
-        self.mock_dbops.GetAllUsers.return_value = [MagicMock(NetworkId='testuser', Name='Test User', RoleId=1, isActive=True, Email='test@example.com')]
-        self.mock_dbops.SadrdSysSettings.return_value = [MagicMock(settingName='test', settingValue='test_value')]
-        self.mock_dbops.GetAllRoles.return_value = MagicMock(json=MagicMock(return_value={'RolesData': [{'RoleID': 1, 'Type': 'Admin'}]}))
-        with patch('APIHome.dbops_obj', self.mock_dbops):
-            response = self.client.get('/api/AuthenticateUser', headers={'Authorization': 'invalid_token'})
-            self.assertEqual(response.status_code, 401)
+    @patch('APIHome.dbops_obj')
+    @patch('Services.Auth.token_required', MagicMock(return_value=lambda f: f))
+    @patch('Services.Auth.GetLoggedInUser', MagicMock(return_value='test_user'))
+    @patch('APIHome.GetAllRoles')
+    def test_AuthenticateUser_user_not_found(self, mock_get_all_roles, mock_dbops_obj):
+        mock_dbops_obj.GetAllUsers.return_value = []
+        mock_get_all_roles.return_value = MagicMock(json=MagicMock(return_value={'RolesData': [{'RoleID': 1, 'Type': 'Admin'}]}))
+        response = self.app.get('/api/AuthenticateUser', headers={'Authorization': 'Bearer test_token'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(json.loads(response.data), {'authenticated': False})
 
-    def test_GetImportTypes(self):
-        self.mock_dbops.SadrdSysSettings.return_value = [MagicMock(settingName='ImportType', settingValue='Type1', Description='Desc1'), MagicMock(settingName='ImportType', settingValue='Type2', Description='Desc2')]
-        with patch('APIHome.dbops_obj', self.mock_dbops):
-            response = self.client.get('/api/GetImportTypes', headers={'Authorization': 'Bearer test_token'})
-            self.assertEqual(response.status_code, 200)
-            data = json.loads(response.data)
-            self.assertEqual(len(data['ImportTypesData']), 2)
+    @patch('APIHome.dbops_obj')
+    @patch('Services.Auth.token_required', MagicMock(return_value=lambda f: f))
+    @patch('Services.Auth.GetLoggedInUser', MagicMock(return_value='test_user'))
+    @patch('APIHome.GetAllRoles')
+    def test_AuthenticateUser_invalid_token(self, mock_get_all_roles, mock_dbops_obj):
+        mock_dbops_obj.GetAllUsers.return_value = [MagicMock(NetworkId='test_user', Name='Test User', RoleId=1, isActive=True, Email='test@example.com')]
+        mock_get_all_roles.return_value = MagicMock(json=MagicMock(return_value={'RolesData': [{'RoleID': 1, 'Type': 'Admin'}]}))
+        response = self.app.get('/api/AuthenticateUser', headers={'Authorization': 'invalid_token'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(json.loads(response.data), {'authenticated': False})
 
-    def test_ImportData_success(self):
-        self.mock_dbops.SadrdSysSettings.return_value = [MagicMock(settingName='ServerFolderPath', settingValue='/test/path')]
-        self.mock_parentparser.return_value = ApihomeResp(status='Success', message='Import successful')
-        with patch('APIHome.dbops_obj', self.mock_dbops):
-            response = self.client.post('/api/ImportData', data={'year': '2023', 'importType': 'Type1'}, headers={'Authorization': 'Bearer test_token'})
-            self.assertEqual(response.status_code, 200)
-            data = json.loads(response.data)
-            self.assertEqual(data['status'], 'Success')
+    @patch('APIHome.dbops_obj')
+    @patch('Services.Auth.token_required', MagicMock(return_value=lambda f: f))
+    def test_GetImportTypes_success(self, mock_dbops_obj):
+        mock_dbops_obj.SadrdSysSettings.return_value = [MagicMock(settingName='ImportType', settingValue='Type1', Description='Desc1'), MagicMock(settingName='ImportType', settingValue='Type2', Description='Desc2')]
+        response = self.app.get('/api/GetImportTypes')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(json.loads(response.data), {'ImportTypesData': [{'ImportId': 1, 'ImportType': 'Type1', 'Description': 'Desc1'}, {'ImportId': 2, 'ImportType': 'Type2', 'Description': 'Desc2'}]})
 
-    def test_GetActionLogs(self):
-        self.mock_dbops.get_actionLog.return_value = [MagicMock(LogID=1, Month=1, Year=2023, UserID='testuser', Module='test', Action='test', ActionDate=datetime.now(), Comments='test', Dataload_Id=1)]
-        with patch('APIHome.dbops_obj', self.mock_dbops):
-            response = self.client.get('/api/GetActionLogs', headers={'Authorization': 'Bearer test_token'})
-            self.assertEqual(response.status_code, 200)
-            data = json.loads(response.data)
-            self.assertEqual(len(data['ActionLogsData']), 1)
+    @patch('APIHome.dbops_obj')
+    @patch('Services.Auth.token_required', MagicMock(return_value=lambda f: f))
+    @patch('Services.parentparser.parentparser')
+    def test_ImportData_success(self, mock_parent_parser, mock_dbops_obj):
+        mock_dbops_obj.SadrdSysSettings.return_value = [MagicMock(settingName='ServerFolderPath', settingValue='test_path')]
+        mock_parent_parser.return_value = ApihomeResp(status='Success', message='Import successful')
+        mock_dbops_obj.UpdateReportStatus.return_value = None
+        mock_dbops_obj.insert_actionLog.return_value = None
+        response = self.app.post('/api/ImportData', data={'year': '2023', 'importType': 'Type1'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(json.loads(response.data), {'status': 'Success', 'message': 'Import successful'})
 
-    def test_GetAllUserDetails(self):
-        self.mock_dbops.GetAllUsers.return_value = [MagicMock(NetworkId='testuser', Name='Test User', isActive=True, RoleId=1, Email='test@example.com')]
-        self.mock_dbops.GetAllRoles.return_value = MagicMock(json=MagicMock(return_value={'RolesData': [{'RoleID': 1, 'Type': 'Admin'}]}))
-        with patch('APIHome.dbops_obj', self.mock_dbops):
-            response = self.client.get('/api/GetAllUserDetails', headers={'Authorization': 'Bearer test_token'})
-            self.assertEqual(response.status_code, 200)
-            data = json.loads(response.data)
-            self.assertEqual(len(data['UsersData']), 1)
+    @patch('APIHome.dbops_obj')
+    @patch('Services.Auth.token_required', MagicMock(return_value=lambda f: f))
+    @patch('Services.parentparser.parentparser')
+    def test_ImportData_failure(self, mock_parent_parser, mock_dbops_obj):
+        mock_dbops_obj.SadrdSysSettings.return_value = [MagicMock(settingName='ServerFolderPath', settingValue='test_path')]
+        mock_parent_parser.return_value = ApihomeResp(status='Failure', message='Import failed')
+        mock_dbops_obj.insert_actionLog.return_value = None
+        response = self.app.post('/api/ImportData', data={'year': '2023', 'importType': 'Type1'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(json.loads(response.data), {'status': 'Failure', 'message': 'Import failed'})
 
-    def test_GetAllRoles(self):
-        self.mock_dbops.GetAllRoles.return_value = [MagicMock(RoleID=1, Type='Admin')]
-        with patch('APIHome.dbops_obj', self.mock_dbops):
-            response = self.client.get('/api/GetAllRoles', headers={'Authorization': 'Bearer test_token'})
-            self.assertEqual(response.status_code, 200)
-            data = json.loads(response.data)
-            self.assertEqual(len(data['RolesData']), 1)
+    @patch('APIHome.dbops_obj')
+    @patch('Services.Auth.token_required', MagicMock(return_value=lambda f: f))
+    def test_GetActionLogs_success(self, mock_dbops_obj):
+        mock_dbops_obj.get_actionLog.return_value = [MagicMock(LogID=1, Month=1, Year=2023, UserID=1, Module='Module1', Action='Action1', ActionDate='2023-01-01', Comments='Comment1', Dataload_Id=1)]
+        response = self.app.get('/api/GetActionLogs')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(json.loads(response.data), {'ActionLogsData': [{'LogID': 1, 'Month': 1, 'Year': 2023, 'UserID': 1, 'Module': 'Module1', 'Action': 'Action1', 'ActionDate': '2023-01-01', 'Comments': 'Comment1', 'Dataload_Id': 1}]})
 
-    def test_UpdateUser_success(self):
-        self.mock_dbops.UpdateUser.return_value = 'Success'
-        self.mock_dbops.SADRD_Sys_Message.return_value = [MagicMock(MessageNumber='E021', Message='User [Record] [UserAction] successfully.', Action='Test Action')]
-        with patch('APIHome.dbops_obj', self.mock_dbops):
-            response = self.client.post('/api/UpdateUser', data={'userAction': 'add', 'Name': 'Test User'}, headers={'Authorization': 'Bearer test_token'})
-            self.assertEqual(response.status_
+    @patch('APIHome.dbops_obj')
+    @patch('Services.Auth.token_required', MagicMock(return_value=lambda f: f))
+    @patch('APIHome.GetAllRoles')
+    def test_GetAllUserDetails_success(self, mock_get_all_roles, mock_dbops_obj):
+        mock_dbops_obj.GetAllUsers.

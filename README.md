@@ -1,4 +1,4 @@
-pytest --cov . test/ --cov-report html
+ pytest --cov . test/ --cov-report html
 ===================================================== test session starts =====================================================
 platform win32 -- Python 3.9.13, pytest-7.2.0, pluggy-1.5.0
 rootdir: C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API
@@ -13,8 +13,8 @@ Traceback:
 C:\Program Files\Python39\lib\importlib\__init__.py:127: in import_module
     return _bootstrap._gcd_import(name[level:], package, level)
 test\test_SADRD_Dataparser.py:7: in <module>
-    import SADRD_Dataparser
-E   ModuleNotFoundError: No module named 'SADRD_Dataparser'
+    from .import SADRD_Dataparser
+E   ImportError: cannot import name 'SADRD_Dataparser' from 'test' (C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API\test\__init__.py)
 ====================================================== warnings summary ======================================================= 
 venv\lib\site-packages\pandas\compat\numpy\__init__.py:10
   C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API\venv\lib\site-packages\pandas\compat\numpy\__init__.py:10: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
@@ -55,8 +55,8 @@ venv\lib\site-packages\flask_sqlalchemy\__init__.py:14
 ---------- coverage: platform win32, python 3.9.13-final-0 -----------
 Coverage HTML written to dir htmlcov
 
-=================================================== short test summary info =================================================== 
+=================================================== short test summary info ===================================================
 ERROR test/test_SADRD_Dataparser.py
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
-================================================ 10 warnings, 1 error in 5.53s ================================================ 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+================================================ 10 warnings, 1 error in 3.18s ================================================
 PS C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API> 

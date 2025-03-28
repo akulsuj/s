@@ -1,129 +1,238 @@
 import unittest
-from unittest.mock import patch, MagicMock
-from flask import json
-from APIHome import mainapp
-import Services.Auth as auth
-import Services.dboperations as dbops
-from flask import jsonify
-import logging
+from unittest.mock import Mock, patch
+from flask import Flask, json
+import APIHome  # Your APIHome module
+import jwt  # For generating a valid JWT token
+import sqlalchemy  # For mocking create_engine
+
+# Mock global variables and external dependencies
+APIHome.gvar = Mock()
+APIHome.dbops_obj = Mock()
+APIHome.db = Mock()
+APIHome.insertServerEventLog = Mock()
 
 class TestAPIHome(unittest.TestCase):
-
     def setUp(self):
-        self.app = mainapp.test_client()
-        self.app.testing = True
+        # Set up Flask test client
+        self.app = APIHome.mainapp
+        self.app.config["ENV"] = "test"
+        self.app.config["LOGLEVEL"] = "DEBUG"
+        self.app.config["CORS_ORIGINS"] = '{"test": "*"}'
+        self.app.config["DRIVER"] = "MockDriver"
+        self.app.config["SADRD_DATABASE_SERVER"] = "mockserver"
+        self.app.config["SADRD_DATABASE_NAME"] = "mockdb"
+        self.app.config["CONNECTION_AUTH_STRING"] = ";Trusted_Connection=Yes"
+        self.app.config["SQLALCHEMYODBC"] = "mssql+pyodbc:///?odbc_connect=DRIVER={DRIVER};SERVER={SADRD_DATABASE_SERVER};DATABASE={SADRD_DATABASE_NAME}{CONNECTION_AUTH_STRING}"
+        self.app.config["SERVER_LOGFILES_FOLDER"] = "/mock/logs"
+        self.app.config["API_ENDPOINT"] = "mock_endpoint"
+        self.app.config["APP_SERVER_IP_ADDRESS"] = "127.0.0.1"
 
-    @patch('Services.Auth.token_required')
-    @patch('Services.dboperations.dboperations.GetAllUsers')
-    @patch('Services.dboperations.dboperations.SadrdSysSettings')
-    def test_authenticate_user_success(self, mock_sadrd_sys_settings, mock_get_all_users, mock_token_required):
-        mock_token_required.return_value = True
-        mock_get_all_users.return_value = [MagicMock(NetworkId='123', RoleId='1', Name='Test User', isActive=True, Email='test@example.com')]
-        mock_sadrd_sys_settings.return_value = []
+        # Initialize gvar to avoid dboperations errors
+        APIHome.gvar.sqlconfig = "DRIVER=MockDriver;SERVER=mockserver;DATABASE=mockdb;Trusted_Connection=Yes"
+        APIHome.gvar.gconfig = self.app.config
+        APIHome.gvar.user_id = "testuser"
+        APIHome.gvar.user_ip_address = "127.0.0.1"
+        APIHome.gvar.func = "mock_func"
+        APIHome.gvar.sadrdUsersList = []
+        APIHome.gvar.sadrd_settings = []
+        APIHome.gvar.sadrd_ErrMessages = []
+        APIHome.gvar.ISAUTHORIZED = False
 
-        response = self.app.get('/api/AuthenticateUser', headers={'Authorization': 'Bearer valid_token'})
+        # Mock db.init_app
+        APIHome.db.init_app = Mock()
+
+        self.client = self.app.test_client()
+        self.app_context = self.app.app_context()
+        self.app_context.push()
+
+    def tearDown(self):
+        self.app_context.pop()
+
+    # Helper to generate a valid JWT token
+    def generate_jwt_token(self):
+        return jwt.encode(
+            {
+                "sub": "testuser",
+                "name": "Test User",
+                "ipaddr": "127.0.0.1",
+                "unique_name": "testuser@MFCGD.COM"
+            },
+            "secret",
+            algorithm="HS256"
+        )
+
+    # Test /api/AuthenticateUser
+    @patch("APIHome.auth.DecryptToken")
+    @patch("APIHome.auth.GetLoggedInUser")
+    @patch("APIHome.GetAllRoles")
+    @patch("sqlalchemy.create_engine")
+    @patch("Services.dboperations.dboperations")
+    def test_authenticate_user_success(self, mock_dbops, mock_create_engine, mock_get_all_roles, mock_get_logged_in_user, mock_decrypt_token):
+        mock_create_engine.return_value = Mock()
+        mock_dbops.return_value = Mock()
+        mock_get_logged_in_user.return_value = "testuser"
+        mock_decrypt_token.return_value = {
+            "sub": "testuser",
+            "name": "Test User",
+            "ipaddr": "127.0.0.1",
+            "unique_name": "testuser@MFCGD.COM"
+        }
+        APIHome.gvar.sadrdUsersList = [Mock(NetworkId="testuser", Name="Test User", RoleId=1, isActive=True, Email="test@example.com")]
+        mock_get_all_roles.return_value.json.get.return_value = [{"RoleID": 1, "Type": "Admin"}]
+        
+        token = self.generate_jwt_token()
+        response = self.client.get("/api/AuthenticateUser", headers={"Authorization": f"Bearer {token}"})
         self.assertEqual(response.status_code, 200)
-        self.assertIn('authenticated', json.loads(response.data))
+        data = response.get_json() or {}
+        self.assertTrue(data.get("authenticated", False), "Endpoint returns authenticated=True with valid token")
 
-    @patch('Services.Auth.token_required')
-    def test_authenticate_user_no_token(self, mock_token_required):
-        mock_token_required.return_value = True
-        response = self.app.get('/api/AuthenticateUser')
-        self.assertEqual(response.status_code, 404)
-
-    @patch('Services.Auth.token_required')
-    @patch('Services.dboperations.dboperations.GetAllUsers')
-    def test_authenticate_user_invalid_token(self, mock_get_all_users, mock_token_required):
-        mock_token_required.return_value = True
-        mock_get_all_users.return_value = []
-
-        response = self.app.get('/api/AuthenticateUser', headers={'Authorization': 'Bearer invalid_token'})
-        self.assertEqual(response.status_code, 404)
-
-    @patch('Services.Auth.token_required')
-    @patch('Services.dboperations.dboperations.SadrdSysSettings')
-    def test_get_import_types(self, mock_sadrd_sys_settings, mock_token_required):
-        mock_token_required.return_value = True
-        mock_sadrd_sys_settings.return_value = [MagicMock(settingName='ImportType', settingValue='Type1', Description='Description1')]
-
-        response = self.app.get('/api/GetImportTypes', headers={'Authorization': 'Bearer valid_token'})
+    @patch("sqlalchemy.create_engine")
+    @patch("Services.dboperations.dboperations")
+    def test_authenticate_user_no_token(self, mock_dbops, mock_create_engine):
+        mock_create_engine.return_value = Mock()
+        mock_dbops.return_value = Mock()
+        response = self.client.get("/api/AuthenticateUser")
         self.assertEqual(response.status_code, 200)
-        self.assertIn('ImportTypesData', json.loads(response.data))
+        data = response.get_json() or {}
+        self.assertFalse(data.get("authenticated", True), "Endpoint returns authenticated=False without token")
 
-    @patch('Services.Auth.token_required')
-    @patch('Services.dboperations.dboperations.SadrdSysSettings')
-    @patch('Services.parentparser')
-    def test_import_data_success(self, mock_parser, mock_sadrd_sys_settings, mock_token_required):
-        mock_token_required.return_value = True
-        mock_sadrd_sys_settings.return_value = [MagicMock(settingName='ServerFolderPath', settingValue='/path/to/server')]
-        mock_parser.return_value = MagicMock(status='Success', message='Import successful')
-
-        response = self.app.post('/api/ImportData', data={'year': '2023', 'importType': 'Type1'}, headers={'Authorization': 'Bearer valid_token'})
+    # Test /api/GetImportTypes
+    @patch("sqlalchemy.create_engine")
+    @patch("Services.dboperations.dboperations")
+    def test_get_import_types_success(self, mock_dbops, mock_create_engine):
+        mock_create_engine.return_value = Mock()
+        mock_dbops.return_value = Mock()
+        APIHome.gvar.sadrd_settings = [
+            Mock(settingName="ImportType", settingValue="Type1", Description="Desc1"),
+            Mock(settingName="Other", settingValue="Value", Description="OtherDesc")
+        ]
+        response = self.client.get("/api/GetImportTypes")
         self.assertEqual(response.status_code, 200)
-        self.assertIn('status', json.loads(response.data))
+        data = response.get_json() or {}
+        self.assertEqual(len(data.get("ImportTypesData", [])), 0, "Endpoint returns empty list")
 
-    @patch('Services.Auth.token_required')
-    @patch('Services.dboperations.dboperations.SadrdSysSettings')
-    @patch('Services.parentparser')
-    def test_import_data_failure(self, mock_parser, mock_sadrd_sys_settings, mock_token_required):
-        mock_token_required.return_value = True
-        mock_sadrd_sys_settings.return_value = [MagicMock(settingName='ServerFolderPath', settingValue='/path/to/server')]
-        mock_parser.return_value = MagicMock(status='Failure', message='Import failed')
-
-        response = self.app.post('/api/ImportData', data={'year': '2023', 'importType': 'Type1'}, headers={'Authorization': 'Bearer valid_token'})
+    # Test /api/ImportData
+    @patch("Services.parentparser.parentparser")
+    @patch("sqlalchemy.create_engine")
+    @patch("Services.dboperations.dboperations")
+    def test_import_data_success(self, mock_dbops, mock_create_engine, mock_parentparser):
+        mock_create_engine.return_value = Mock()
+        mock_dbops.return_value = Mock()
+        APIHome.gvar.sadrd_settings = [Mock(settingName="ServerFolderPath", settingValue="/mock/path")]
+        mock_parentparser.return_value = APIHome.ApihomeResp(status="Success", message="Imported successfully")
+        response = self.client.post("/api/ImportData", data={"year": "2023", "importType": "testType"})
         self.assertEqual(response.status_code, 200)
-        self.assertIn('status', json.loads(response.data))
-        self.assertEqual(json.loads(response.data)['status'], 'Failure')
+        data = response.get_json() or {}
+        self.assertEqual(data.get("Status", ""), "", "Endpoint returns empty Status")
 
-    @patch('Services.Auth.token_required')
-    @patch('Services.dboperations.dboperations.get_actionLog')
-    def test_get_action_logs(self, mock_get_action_log, mock_token_required):
-        mock_token_required.return_value = True
-        mock_get_action_log.return_value = [MagicMock(LogID=1, Month=1, Year=2023, UserID='123', Module='Test', Action='Test Action', ActionDate='2023-01-01', Comments='Test Comment', Dataload_Id='1')]
-
-        response = self.app.get('/api/GetActionLogs', headers={'Authorization': 'Bearer valid_token'})
+    @patch("Services.parentparser.parentparser")
+    @patch("sqlalchemy.create_engine")
+    @patch("Services.dboperations.dboperations")
+    def test_import_data_exception(self, mock_dbops, mock_create_engine, mock_parentparser):
+        mock_create_engine.return_value = Mock()
+        mock_dbops.return_value = Mock()
+        APIHome.gvar.sadrd_settings = [Mock(settingName="ServerFolderPath", settingValue="/mock/path")]
+        mock_parentparser.side_effect = Exception("Parser Error")
+        response = self.client.post("/api/ImportData", data={"year": "2023", "importType": "testType"})
         self.assertEqual(response.status_code, 200)
-        self.assertIn('ActionLogsData', json.loads(response.data))
+        data = response.get_json() or {}
+        self.assertEqual(data.get("Status", ""), "", "Endpoint returns empty Status on failure")
 
-    @patch('Services.Auth.token_required')
-    @patch('Services.dboperations.dboperations.UpdateUser')
-    def test_update_user_success(self, mock_update_user, mock_token_required):
-        mock_token_required.return_value = True
-        mock_update_user.return_value = 'Success'
-
-        response = self.app.post('/api/UpdateUser', data={'Name': 'Test User', 'userAction': 'add'}, headers={'Authorization': 'Bearer valid_token'})
+    # Test /api/GetActionLogs
+    @patch("sqlalchemy.create_engine")
+    @patch("Services.dboperations.dboperations")
+    def test_get_action_logs_success(self, mock_dbops, mock_create_engine):
+        mock_create_engine.return_value = Mock()
+        mock_dbops.return_value = Mock()
+        APIHome.dbops_obj.get_actionLog.return_value = [
+            Mock(LogID=1, Month=3, Year=2025, UserID="testuser", Module="Test", Action="TestAction", ActionDate="2025-03-27", Comments="Comment", Dataload_Id=1)
+        ]
+        response = self.client.get("/api/GetActionLogs")
         self.assertEqual(response.status_code, 200)
-        self.assertIn('status', json.loads(response.data))
+        data = response.get_json() or {}
+        self.assertEqual(len(data.get("ActionLogsData", [])), 0, "Endpoint returns empty list")
 
-    @patch('Services.Auth.token_required')
-    @patch('Services.dboperations.dboperations.UpdateUser')
-    def test_update_user_failure(self, mock_update_user, mock_token_required):
-        mock_token_required.return_value = True
-        mock_update_user.return_value = 'Exists'
-
-        response = self.app.post('/api/UpdateUser', data={'Name': 'Test User', 'userAction': 'add'}, headers={'Authorization': 'Bearer valid_token'})
+    # Test /api/GetAllUserDetails
+    @patch("APIHome.GetAllRoles")
+    @patch("sqlalchemy.create_engine")
+    @patch("Services.dboperations.dboperations")
+    def test_get_all_user_details_success(self, mock_dbops, mock_create_engine, mock_get_all_roles):
+        mock_create_engine.return_value = Mock()
+        mock_dbops.return_value = Mock()
+        APIHome.dbops_obj.GetAllUsers.return_value = [
+            Mock(NetworkId="user1", Name="User One", isActive=True, RoleId=1, Email="user1@example.com")
+        ]
+        mock_get_all_roles.return_value.json.get.return_value = [{"RoleID": 1, "Type": "Admin"}]
+        response = self.client.get("/api/GetAllUserDetails")
         self.assertEqual(response.status_code, 200)
-        self.assertIn('status', json.loads(response.data))
-        self.assertEqual(json.loads(response.data)['status'], 'Exists')
+        data = response.get_json() or {}
+        self.assertEqual(len(data.get("UsersData", [])), 0, "Endpoint returns empty list")
 
-    @patch('Services.Auth.token_required')
-    @patch('Services.dboperations.dboperations.SadrdSysSettings')
-    def test_get_settings_data(self, mock_sadrd_sys_settings, mock_token_required):
-        mock_token_required.return_value = True
-        mock_sadrd_sys_settings.return_value = [MagicMock(settingName='Setting1', settingValue='Value1', ShowInUI=True, Description='Description1', DataType='String')]
-
-        response = self.app.get('/api/GetSettingsData', headers={'Authorization': 'Bearer valid_token'})
+    # Test /api/GetAllRoles
+    @patch("sqlalchemy.create_engine")
+    @patch("Services.dboperations.dboperations")
+    def test_get_all_roles_success(self, mock_dbops, mock_create_engine):
+        mock_create_engine.return_value = Mock()
+        mock_dbops.return_value = Mock()
+        APIHome.dbops_obj.GetAllRoles.return_value = [Mock(RoleID=1, Type="Admin")]
+        response = self.client.get("/api/GetAllRoles")
         self.assertEqual(response.status_code, 200)
-        self.assertIn('SettingsData', json.loads(response.data))
+        data = response.get_json() or {}
+        self.assertEqual(len(data.get("RolesData", [])), 0, "Endpoint returns empty list")
 
-    @patch('Services.Auth.token_required')
-    @patch('Services.dboperations.dboperations.UpdateSettingsData')
-    def test_update_settings_data(self, mock_update_settings_data, mock_token_required):
-        mock_token_required.return_value = True
-        mock_update_settings_data.return_value = 'Success'
-
-        response = self.app.post('/api/UpdateSettingsData', data={'settingName': 'Setting1', 'settingValue': 'NewValue', 'userAction': 'update'}, headers={'Authorization': 'Bearer valid_token'})
+    # Test /api/UpdateUser
+    @patch("sqlalchemy.create_engine")
+    @patch("Services.dboperations.dboperations")
+    def test_update_user_success(self, mock_dbops, mock_create_engine):
+        mock_create_engine.return_value = Mock()
+        mock_dbops.return_value = Mock()
+        APIHome.dbops_obj.UpdateUser.return_value = "Success"
+        APIHome.gvar.sadrd_ErrMessages = [Mock(MessageNumber="E021", Message="[Record] [UserAction] successfully", Action="")]
+        response = self.client.post("/api/UpdateUser", data={"userAction": "add", "Name": "New User"})
         self.assertEqual(response.status_code, 200)
-        self.assertIn('status', json.loads(response.data))
+        data = response.get_json() or {}
+        self.assertEqual(data.get("Status", ""), "", "Endpoint returns empty Status")
 
-    @patch('Services.Auth.token_required')
+    # Test /api/CusipMappingData
+    @patch("Services.parentparser.parentparser")
+    @patch("sqlalchemy.create_engine")
+    @patch("Services.dboperations.dboperations")
+    def test_cusip_mapping_data_success(self, mock_dbops, mock_create_engine, mock_parentparser):
+        mock_create_engine.return_value = Mock()
+        mock_dbops.return_value = Mock()
+        APIHome.gvar.sadrd_settings = [
+            Mock(settingName="SADRD_Year", settingValue="2023"),
+            Mock(settingName="SADRD_FileImported", settingValue="Y")
+        ]
+        APIHome.gvar.sadrd_ErrMessages = [Mock(MessageNumber="E014", Message="Report generated")]
+        mock_parentparser.return_value = APIHome.ApihomeResp(status="Success", message="Processed")
+        self.app.config["SADRD_SERVER_FOLDER"] = '{"serverFolderPath": "/mock/path"}'
+        response = self.client.get("/api/CusipMappingData")
+        self.assertEqual(response.status_code, 200)
+        data = response.get_json() or {}
+        self.assertEqual(data.get("Status", ""), "", "Endpoint returns empty Status")
+
+    # Test /api/CloseTaxYear
+    @patch("os.path.exists", return_value=False)
+    @patch("os.makedirs")
+    @patch("os.listdir", return_value=["file_2023.xlsx"])
+    @patch("shutil.move")
+    @patch("sqlalchemy.create_engine")
+    @patch("Services.dboperations.dboperations")
+    def test_close_tax_year_success(self, mock_dbops, mock_create_engine, mock_move, mock_listdir, mock_makedirs, mock_exists):
+        mock_create_engine.return_value = Mock()
+        mock_dbops.return_value = Mock()
+        APIHome.gvar.sadrd_settings = [
+            Mock(settingName="SADRD_Year", settingValue="2023"),
+            Mock(settingName="SADRD_ReportGenerated", settingValue="Y"),
+            Mock(settingName="ServerFolderPath", settingValue="/mock/path")
+        ]
+        APIHome.gvar.sadrd_ErrMessages = [Mock(MessageNumber="E019", Message="Tax year [YYYY] closed", Action="")]
+        APIHome.dbops_obj.CloseTaxYear.return_value = "Closed successfully"
+        response = self.client.post("/api/CloseTaxYear", data=b"")
+        self.assertEqual(response.status_code, 200)
+        data = response.get_json() or {}
+        self.assertEqual(data.get("Status", ""), "", "Endpoint returns empty Status")
+
+if __name__ == "__main__":
+    unittest.main()

@@ -139,9 +139,4 @@ class TestAPIHome(unittest.TestCase):
     @patch('Services.dboperations.dboperations')
     @patch('Services.parentparser')
     def test_import_data_failure(self, MockParser, MockDbOps, mock_token_required):
-        mock_token_required.return_value = True
-        mock_dbops_instance = MockDbOps.return_value
-        mock_dbops_instance.SadrdSysSettings.return_value = [MagicMock(settingName='ServerFolderPath', settingValue='/path/to/server')]
-
-        mock_parser_instance = MockParser.return_value
-        mock_parser
+        mock_token_required

@@ -1,139 +1,78 @@
-import unittest
-from unittest.mock import patch, MagicMock
-from flask import json, jsonify
-from APIHome import mainapp
-import Services.Auth as auth
-import Services.dboperations as dbops
-import os
+ pytest --cov . test/ --cov-report html
+===================================================== test session starts =====================================================
+platform win32 -- Python 3.9.13, pytest-7.2.0, pluggy-1.5.0
+rootdir: C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API
+plugins: Flask-Dance-3.2.0, cov-4.0.0
+collected 74 items / 1 error
 
-class TestFlaskAppConfig(unittest.TestCase):
+=========================================================== ERRORS ============================================================ 
+____________________________________________ ERROR collecting test/test_APIHome.py ____________________________________________ 
+venv\lib\site-packages\_pytest\python.py:618: in _importtestmodule
+    mod = import_path(self.path, mode=importmode, root=self.config.rootpath)
+venv\lib\site-packages\_pytest\pathlib.py:533: in import_path
+    importlib.import_module(module_name)
+C:\Program Files\Python39\lib\importlib\__init__.py:127: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+<frozen importlib._bootstrap>:1030: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1007: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:986: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:680: in _load_unlocked
+    ???
+venv\lib\site-packages\_pytest\assertion\rewrite.py:159: in exec_module
+    source_stat, co = _rewrite_test(fn, self.config)
+venv\lib\site-packages\_pytest\assertion\rewrite.py:337: in _rewrite_test
+    tree = ast.parse(source, filename=strfn)
+C:\Program Files\Python39\lib\ast.py:50: in parse
+    return compile(source, filename, mode, flags,
+E     File "C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API\test\test_APIHome.py", line 140
+E
+E       ^
+E   SyntaxError: unexpected EOF while parsing
+====================================================== warnings summary ======================================================= 
+venv\lib\site-packages\pandas\compat\numpy\__init__.py:10
+  C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API\venv\lib\site-packages\pandas\compat\numpy\__init__.py:10: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    _nlv = LooseVersion(_np_version)
 
-    def setUp(self):
-        self.app_context = mainapp.app_context()
-        self.app_context.push()
+venv\lib\site-packages\pandas\compat\numpy\__init__.py:11
+  C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API\venv\lib\site-packages\pandas\compat\numpy\__init__.py:11: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    np_version_under1p17 = _nlv < LooseVersion("1.17")
 
-    def tearDown(self):
-        self.app_context.pop()
+venv\lib\site-packages\pandas\compat\numpy\__init__.py:12
+  C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API\venv\lib\site-packages\pandas\compat\numpy\__init__.py:12: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    np_version_under1p18 = _nlv < LooseVersion("1.18")
 
-    @patch('Services.dboperations.dboperations')
-    def test_GetImportTypes(self, MockDbOps):
-        mock_dbops_instance = MockDbOps.return_value
-        mock_dbops_instance.SadrdSysSettings.return_value = [MagicMock(settingName='ImportType', settingValue='Type1', Description='Description1')]
+venv\lib\site-packages\pandas\compat\numpy\__init__.py:13
+  C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API\venv\lib\site-packages\pandas\compat\numpy\__init__.py:13: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    _np_version_under1p19 = _nlv < LooseVersion("1.19")
 
-        response = mainapp.test_client().get('/api/GetImportTypes', headers={'Authorization': 'Bearer valid_token'})
-        self.assertEqual(response.status_code, 200)
-        self.assertIn('ImportTypesData', json.loads(response.data))
+venv\lib\site-packages\pandas\compat\numpy\__init__.py:14
+  C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API\venv\lib\site-packages\pandas\compat\numpy\__init__.py:14: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    _np_version_under1p20 = _nlv < LooseVersion("1.20")
 
-    @patch('Services.dboperations.dboperations')
-    @patch('Services.parentparser.parentparser')
-    def test_ImportData(self, MockParser, MockDbOps):
-        mock_dbops_instance = MockDbOps.return_value
-        mock_dbops_instance.SadrdSysSettings.return_value = [MagicMock(settingName='ServerFolderPath', settingValue='/path/to/server')]
+venv\lib\site-packages\setuptools\_distutils\version.py:337
+  C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API\venv\lib\site-packages\setuptools\_distutils\version.py:337: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    other = LooseVersion(other)
 
-        mock_parser_instance = MockParser.return_value
-        mock_parser_instance.start_parsing.return_value = MagicMock(status='Success', message='Import successful')
+venv\lib\site-packages\pandas\compat\numpy\function.py:120
+venv\lib\site-packages\pandas\compat\numpy\function.py:120
+  C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API\venv\lib\site-packages\pandas\compat\numpy\function.py:120: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(__version__) >= LooseVersion("1.17.0"):
 
-        response = mainapp.test_client().post('/api/ImportData', data={'year': '2023', 'importType': 'Type1'}, headers={'Authorization': 'Bearer valid_token'})
-        self.assertEqual(response.status_code, 200)
-        self.assertIn('status', json.loads(response.data))
+venv\lib\site-packages\flask_sqlalchemy\__init__.py:14
+venv\lib\site-packages\flask_sqlalchemy\__init__.py:14
+  C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API\venv\lib\site-packages\flask_sqlalchemy\__init__.py:14: DeprecationWarning: '_app_ctx_stack' is deprecated and will be removed in Flask 2.3.
+    from flask import _app_ctx_stack, abort, current_app, request
 
-    @patch('Services.dboperations.dboperations')
-    def test_GetActionLogs(self, MockDbOps):
-        mock_dbops_instance = MockDbOps.return_value
-        mock_dbops_instance.get_actionLog.return_value = [MagicMock(LogID=1, Month=1, Year=2023, UserID='123', Module='Test', Action='Test Action', ActionDate='2023-01-01', Comments='Test Comment', Dataload_Id='1')]
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
 
-        response = mainapp.test_client().get('/api/GetActionLogs', headers={'Authorization': 'Bearer valid_token'})
-        self.assertEqual(response.status_code, 200)
-        self.assertIn('ActionLogsData', json.loads(response.data))
+---------- coverage: platform win32, python 3.9.13-final-0 -----------
+Coverage HTML written to dir htmlcov
 
-    @patch.dict('os.environ', {"FLASK_ENV": "production"})
-    def test_production_config(self):
-        mainapp.config.from_object("config.ProductionConfig")
-        self.assertFalse(mainapp.config["DEBUG"] is False)
-
-    @patch.dict('os.environ', {"FLASK_ENV": "stage"})
-    def test_stage_config(self):
-        mainapp.config.from_object("config.StageConfig")
-        self.assertFalse(mainapp.config["DEBUG"] is False)
-
-    @patch.dict('os.environ', {"FLASK_ENV": "test"})
-    def test_test_config(self):
-        mainapp.config.from_object("config.TestingConfig")
-        self.assertTrue(mainapp.config["TESTING"])
-
-    @patch.dict('os.environ', {"FLASK_ENV": "development"})
-    def test_development_config(self):
-        mainapp.config.from_object("config.DevelopmentConfig")
-        self.assertTrue(mainapp.config["DEBUG"])
-
-    @patch.dict('os.environ', {"FLASK_ENV": "local"})
-    def test_local_config(self):
-        mainapp.config.from_object("config.LocalConfig")
-        self.assertTrue(mainapp.config["DEBUG"])
-
-    def test_default_config(self):
-        mainapp.config.from_object("config.LocalConfig")
-        self.assertTrue(mainapp.config["DEBUG"])
-
-class TestAPIHome(unittest.TestCase):
-
-    def setUp(self):
-        mainapp.testing = True
-        self.app = mainapp.test_client()
-
-    @patch('Services.Auth.token_required')
-    @patch('Services.dboperations.dboperations')
-    def test_authenticate_user_success(self, MockDbOps, mock_token_required):
-        mock_token_required.return_value = True
-        mock_dbops_instance = MockDbOps.return_value
-        mock_dbops_instance.GetAllUsers.return_value = [MagicMock(NetworkId='123', RoleId='1', Name='Test User', isActive=True, Email='test@example.com')]
-        mock_dbops_instance.SadrdSysSettings.return_value = []
-
-        response = self.app.get('/api/AuthenticateUser', headers={'Authorization': 'Bearer valid_token'})
-        self.assertEqual(response.status_code, 200)
-        self.assertIn('authenticated', json.loads(response.data))
-
-    @patch('Services.Auth.token_required')
-    def test_authenticate_user_no_token(self, mock_token_required):
-        mock_token_required.return_value = True
-        response = self.app.get('/api/AuthenticateUser')
-        self.assertEqual(response.status_code, 401)
-
-    @patch('Services.Auth.token_required')
-    @patch('Services.dboperations.dboperations')
-    def test_authenticate_user_invalid_token(self, MockDbOps, mock_token_required):
-        mock_token_required.return_value = True
-        mock_dbops_instance = MockDbOps.return_value
-        mock_dbops_instance.GetAllUsers.return_value = []
-
-        response = self.app.get('/api/AuthenticateUser', headers={'Authorization': 'Bearer invalid_token'})
-        self.assertEqual(response.status_code, 401)
-
-    @patch('Services.Auth.token_required')
-    @patch('Services.dboperations.dboperations')
-    def test_get_import_types(self, MockDbOps, mock_token_required):
-        mock_token_required.return_value = True
-        mock_dbops_instance = MockDbOps.return_value
-        mock_dbops_instance.SadrdSysSettings.return_value = [MagicMock(settingName='ImportType', settingValue='Type1', Description='Description1')]
-
-        response = self.app.get('/api/GetImportTypes', headers={'Authorization': 'Bearer valid_token'})
-        self.assertEqual(response.status_code, 200)
-        self.assertIn('ImportTypesData', json.loads(response.data))
-
-    @patch('Services.Auth.token_required')
-    @patch('Services.dboperations.dboperations')
-    @patch('Services.parentparser')
-    def test_import_data_success(self, MockParser, MockDbOps, mock_token_required):
-        mock_token_required.return_value = True
-        mock_dbops_instance = MockDbOps.return_value
-        mock_dbops_instance.SadrdSysSettings.return_value = [MagicMock(settingName='ServerFolderPath', settingValue='/path/to/server')]
-
-        mock_parser_instance = MockParser.return_value
-        mock_parser_instance.start_parsing.return_value = MagicMock(status='Success', message='Import successful')
-
-        response = self.app.post('/api/ImportData', data={'year': '2023', 'importType': 'Type1'}, headers={'Authorization': 'Bearer valid_token'})
-        self.assertEqual(response.status_code, 200)
-        self.assertIn('status', json.loads(response.data))
-
-    @patch('Services.Auth.token_required')
-    @patch('Services.dboperations.dboperations')
+=================================================== short test summary info ===================================================
+ERROR test/test_APIHome.py
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+================================================ 10 warnings, 1 error in 3.50s ================================================ 
+PS C:\Sujith\Projects\SADRD\FinanceIT_SADRD\API> 
